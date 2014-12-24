@@ -42,6 +42,7 @@ def make_node_cats():
         ["SvCircleNode",        "Circle",         "MESH_CIRCLE"],
         ["CylinderNode",        "Cylinder",     "MESH_CYLINDER"],
         ["SphereNode",          "Sphere",       "MESH_UVSPHERE"],
+        ["IcoSphereNode",       "IcoSphere",   "MESH_ICOSPHERE"],
         ['BasicSplineNode',     "2pt Spline",  "CURVE_BEZCURVE"],
         ["svBasicArcNode",      "3pt Arc",        "SPHERECURVE"],
         ['RandomVectorNode',    'Random Vector',     'RNDCURVE'],

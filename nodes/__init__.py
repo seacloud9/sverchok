@@ -58,6 +58,7 @@ nodes_dict = {
         'script_mk2',
         'formula',
         'sphere',
+        'ico_sphere',
         'basic_spline',
         'basic_3pt_arc',
         'instancer',
