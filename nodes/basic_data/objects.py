@@ -19,12 +19,73 @@
 from ast import literal_eval
 
 import bpy
-from bpy.props import BoolProperty, StringProperty
+from bpy.props import BoolProperty, StringProperty, FloatProperty
 
-from sverchok.node_tree import SverchCustomTreeNode
-from sverchok.data_structure import (handle_read, handle_write, handle_delete,
-                            SvSetSocketAnyType, updateNode)
 import sverchok
+from sverchok.node_tree import SverchCustomTreeNode
+from sverchok.data_structure import (
+    handle_read,
+    handle_write,
+    handle_delete,
+    SvSetSocketAnyType,
+    updateNode)
+
+
+class svModalObjUpdater(bpy.types.Operator, object):
+
+    """Operator which runs its self from a timer"""
+    bl_idname = "wm.sv_obj_modal_update"
+    bl_label = "start n stop obj updating"
+
+    _timer = None
+    mode = StringProperty(default='')
+    node_name = StringProperty(default='')
+    node_group = StringProperty(default='')
+    speed = FloatProperty(0.2)
+
+    def modal(self, context, event):
+        if self.node_group and self.node_name:
+            ng = bpy.data.node_groups.get(self.node_group)
+            n = ng.nodes[self.node_name]
+        else:
+            return {'PASS_THROUGH'}
+
+        if not (event.type == 'TIMER'):
+            return {'PASS_THROUGH'}
+
+        if not n.active:
+            self.cancel(context)
+            return {'FINISHED'}
+
+        self.process(ng, n)
+        return {'PASS_THROUGH'}
+
+    def process(self, ng, n):
+        ''' reaches here only if event is TIMER and n.active '''
+        n.process()
+
+    def event_dispatcher(self, context, type_op):
+        if type_op == 'start':
+            context.node.active = True
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(self.speed, context.window)
+            wm.modal_handler_add(self)
+
+        if type_op == 'end':
+            context.node.active = False
+
+    def execute(self, context):
+        n = context.node
+        self.node_name = context.node.name
+        self.node_group = context.node.id_data.name
+
+        self.event_dispatcher(context, self.mode)
+        return {'RUNNING_MODAL'}
+
+    def cancel(self, context):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
 
 class SvObjSelected(bpy.types.Operator):
     """ G E T   SELECTED OBJECTS """
@@ -32,33 +93,42 @@ class SvObjSelected(bpy.types.Operator):
     bl_label = "Sverchok object selector"
     bl_options = {'REGISTER', 'UNDO'}
 
-    node_name = StringProperty(name='name node', description='it is name of node',
-                               default='')
-    tree_name = StringProperty(name='name tree', description='it is name of tree',
-                               default='')
-    grup_name = StringProperty(name='grup tree', description='it is name of grup',
-                               default='')
-    sort = BoolProperty(name='sort objects', description='to sort objects by name or not',
-                               default=True)
+    node_name = StringProperty(
+        name='name node', description='it is name of node',
+        default='')
+
+    tree_name = StringProperty(
+        name='name tree', description='it is name of tree',
+        default='')
+
+    grup_name = StringProperty(
+        name='grup tree', description='it is name of group',
+        default='')
+
+    sort = BoolProperty(
+        name='sort objects', description='to sort objects by name or not',
+        default=True)
 
     def enable(self, name_no, name_tr, handle, sorting):
+
         objects = []
         if self.grup_name and bpy.data.groups[self.grup_name].objects:
             objs = bpy.data.groups[self.grup_name].objects
         elif bpy.context.selected_objects:
             objs = bpy.context.selected_objects
         else:
-            self.report({'WARNING'},'No object selected')
+            self.report({'WARNING'}, 'No object selected')
             return
+
         for o in objs:
             objects.append(o.name)
         if sorting:
             objects.sort()
-        handle_write(name_no+name_tr, objects)
-        # временное решение с группой. надо решать, как достать имя группы узлов
+
+        handle_write(name_no + name_tr, objects)
+
         if bpy.data.node_groups[name_tr]:
-            handle = handle_read(name_no+name_tr)
-            #print ('exec',name)
+            handle = handle_read(name_no + name_tr)
             bpy.data.node_groups[name_tr].nodes[name_no].objects_local = str(handle[1])
 
     def disable(self, name, handle):
@@ -88,7 +158,7 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
             self.outputs.new('StringsSocket', "Vers_grouped", "Vers_grouped")
         elif not self.vergroups and ('Vers_grouped' in self.outputs):
             self.outputs.remove(self.outputs['Vers_grouped'])
-        
+
     objects_local = StringProperty(
         name='local objects in', description='objects, binded to current node',
         default='', update=updateNode)
@@ -97,21 +167,30 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
         name='groupname', description='group of objects (green outline CTRL+G)',
         default='',
         update=updateNode)
+
     modifiers = BoolProperty(
         name='Modifiers',
         description='Apply modifier geometry to import (original untouched)',
         default=False,
         update=updateNode)
+
     vergroups = BoolProperty(
         name='Vergroups',
         description='Use vertex groups to nesty insertion',
         default=False,
         update=hide_show_versgroups)
+
     sort = BoolProperty(
         name='sort by name',
         description='sorting inserted objects by names',
         default=True,
         update=updateNode)
+
+    active = BoolProperty(
+        name='live update',
+        default=0,
+        update=updateNode
+        )
 
     def sv_init(self, context):
         self.outputs.new('VerticesSocket', "Vertices", "Vertices")
@@ -128,7 +207,7 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
         else:
             row.scale_y = 1
             op_text = "Get selection"
-            
+
         opera = row.operator('node.sverchok_object_insertion', text=op_text)
         opera.node_name = self.name
         opera.tree_name = self.id_data.name
@@ -137,12 +216,12 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
         row = layout.row(align=True)
         row.prop(self, 'groupname', text='')
         row.prop(self, 'sort', text='Sort objects')
-        
+
         row = layout.row(align=True)
         row.prop(self, "modifiers", text="Post modifiers")
         # row = layout.row(align=True)
         row.prop(self, "vergroups", text="Vert groups")
-        
+
         handle = handle_read(self.name+self.id_data.name)
         if self.objects_local:
             if handle[0]:
@@ -155,19 +234,25 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
                 handle_write(self.name+self.id_data.name, literal_eval(self.objects_local))
         else:
             layout.label('--None--')
-        
+
+        # Live Update Modal trigger. Verbose for now.
+        row = layout.row()
+        if self.active:
+            row.operator('wm.sv_obj_modal_update', text='Press to stop live update').mode = 'end'
+        else:
+            row.operator('wm.sv_obj_modal_update', text='Press to start live update').mode = 'start'
 
     def update(self):
         pass
-            
+
     def process(self):
         name = self.name + self.id_data.name
         handle = handle_read(name)
         #reload handle if possible
         if self.objects_local and not handle[0]:
             handle_write(name, literal_eval(self.objects_local))
-            handle = handle_read(name)    
-            
+            handle = handle_read(name)
+
         if handle[0]:
             objs = handle[1]
             edgs_out = []
@@ -230,13 +315,14 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
 def register():
     bpy.utils.register_class(SvObjSelected)
     bpy.utils.register_class(ObjectsNode)
+    bpy.utils.register_class(svModalObjUpdater)
 
 
 def unregister():
+    bpy.utils.unregister_class(svModalObjUpdater)
     bpy.utils.unregister_class(ObjectsNode)
     bpy.utils.unregister_class(SvObjSelected)
 
+
 if __name__ == '__main__':
     register()
-
-
