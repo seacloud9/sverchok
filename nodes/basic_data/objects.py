@@ -41,7 +41,7 @@ class svModalObjUpdater(bpy.types.Operator, object):
     mode = StringProperty(default='')
     node_name = StringProperty(default='')
     node_group = StringProperty(default='')
-    speed = FloatProperty(0.2)
+    speed = FloatProperty(default=0.2)
 
     def modal(self, context, event):
         if self.node_group and self.node_name:
@@ -62,6 +62,7 @@ class svModalObjUpdater(bpy.types.Operator, object):
 
     def process(self, ng, n):
         ''' reaches here only if event is TIMER and n.active '''
+        print('calling process on:', n.name)
         n.process()
 
     def event_dispatcher(self, context, type_op):
@@ -73,6 +74,7 @@ class svModalObjUpdater(bpy.types.Operator, object):
 
         if type_op == 'end':
             context.node.active = False
+            self.cancel(context)
 
     def execute(self, context):
         n = context.node
