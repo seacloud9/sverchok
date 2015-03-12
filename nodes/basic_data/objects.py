@@ -57,13 +57,10 @@ class svModalObjUpdater(bpy.types.Operator, object):
             self.cancel(context)
             return {'FINISHED'}
 
-        self.process(ng, n)
-        return {'PASS_THROUGH'}
-
-    def process(self, ng, n):
         ''' reaches here only if event is TIMER and n.active '''
         print('calling process on:', n.name)
         n.process()
+        return {'PASS_THROUGH'}
 
     def event_dispatcher(self, context, type_op):
         if type_op == 'start':
@@ -74,7 +71,6 @@ class svModalObjUpdater(bpy.types.Operator, object):
 
         if type_op == 'end':
             context.node.active = False
-            self.cancel(context)
 
     def execute(self, context):
         n = context.node
