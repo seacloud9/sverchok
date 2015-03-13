@@ -19,7 +19,7 @@
 from ast import literal_eval
 
 import bpy
-from bpy.props import BoolProperty, StringProperty, FloatProperty
+from bpy.props import BoolProperty, StringProperty, FloatProperty, IntProperty
 
 import sverchok
 from sverchok.core.update_system import process_from_node
@@ -42,7 +42,7 @@ class svModalObjUpdater(bpy.types.Operator, object):
     mode = StringProperty(default='')
     node_name = StringProperty(default='')
     node_group = StringProperty(default='')
-    speed = FloatProperty(default=0.2)
+    speed = FloatProperty()
 
     def modal(self, context, event):
         if self.node_group and self.node_name:
@@ -66,6 +66,10 @@ class svModalObjUpdater(bpy.types.Operator, object):
     def event_dispatcher(self, context, type_op):
         if type_op == 'start':
             context.node.active = True
+
+            # rate can only be set in event_timer_add (I think...) 
+            self.speed = 1 / context.node.updateRate
+
             wm = context.window_manager
             self._timer = wm.event_timer_add(self.speed, context.window)
             wm.modal_handler_add(self)
@@ -191,11 +195,20 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
         update=updateNode
         )
 
+    updateRate = IntProperty(
+        name='updateRate',
+        description='Updates per second (will try)',
+        min=1, max=20, default=5, step=1)
+
     def sv_init(self, context):
         self.outputs.new('VerticesSocket', "Vertices", "Vertices")
         self.outputs.new('StringsSocket', "Edges", "Edges")
         self.outputs.new('StringsSocket', "Polygons", "Polygons")
         self.outputs.new('MatrixSocket', "Matrixes", "Matrixes")
+
+    def draw_buttons_ext(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'updateRate', text='Live update rate')
 
     def draw_buttons(self, context, layout):
         row = layout.row()
