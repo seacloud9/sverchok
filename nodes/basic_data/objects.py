@@ -244,6 +244,9 @@ class ObjectsNode(bpy.types.Node, SverchCustomTreeNode):
         pass
 
     def process(self):
+
+        print('called')
+
         name = self.name + self.id_data.name
         handle = handle_read(name)
         #reload handle if possible
