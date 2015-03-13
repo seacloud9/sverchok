@@ -22,6 +22,7 @@ import bpy
 from bpy.props import BoolProperty, StringProperty, FloatProperty
 
 import sverchok
+from sverchok.core.update_system import process_from_node
 from sverchok.node_tree import SverchCustomTreeNode
 from sverchok.data_structure import (
     handle_read,
@@ -59,7 +60,7 @@ class svModalObjUpdater(bpy.types.Operator, object):
 
         ''' reaches here only if event is TIMER and n.active '''
         print('calling process on:', n.name)
-        n.process()
+        process_from_node(n)
         return {'PASS_THROUGH'}
 
     def event_dispatcher(self, context, type_op):
