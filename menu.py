@@ -260,6 +260,7 @@ def make_node_cats():
     node_cats["Alpha Nodes"] = [
         ["SvCurveViewerNode",     "Curve Viewer",           'MOD_CURVE'],
         ["SvCurveViewerNodeAlt",  "Curve Viewer 2D",        'MOD_CURVE'],
+        ["SvCurveOutputMKI",      "Curve Outpt MK I",       'MOD_CURVE'],
         ['SvTypeViewerNode',      'Typography Viewer'],
         ["SvImageComponentsNode", "Image Decompose",       "GROUP_VCOL"],
         ["SvJoinTrianglesNode",   "Join Triangles"],

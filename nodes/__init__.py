@@ -29,6 +29,7 @@ nodes_dict = {
         'viewer_indices',
         'viewer_curves',
         'viewer_curves_2d',
+        'output_curves',
         'viewer_skin',
         'viewer_text',
         'viewer_mk2',
