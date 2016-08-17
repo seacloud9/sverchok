@@ -46,6 +46,11 @@ def add_keymap():
         kmi = km.keymap_items.new('node.sv_monad_expand', 'G', 'PRESS', alt=True)
         nodeview_keymaps.append((km, kmi))
 
+        # ctrl+I        | interchange int based node to float or vice versa
+        kmi = km.keymap_items.new('node.sv_nodeswap_intfloat', 'I', 'PRESS', ctrl=True)
+        nodeview_keymaps.append((km, kmi))
+
+
 
 def remove_keymap():
     for km, kmi in nodeview_keymaps:
