@@ -135,6 +135,8 @@ class SverchokGText(bpy.types.Operator):
             node.erase_gtext()
         if self.mode == 'clipboard':
             node.set_gtest()
+        if self.mode == 'clear_font':
+            node.font_name = ''
 
         return {'FINISHED'}
 
@@ -146,14 +148,16 @@ class GTextNode(bpy.types.Node, SverchCustomTreeNode):
     bl_label = 'GText'
     bl_icon = 'OUTLINER_OB_EMPTY'
 
-    text = StringProperty(name='text',
-                          default='your text here')
-    locator = IntVectorProperty(name="locator", description="stores location",
-                                default=(0, 0), size=2)
+    text = StringProperty(
+        name='text', default='your text here')
 
-    text_scale = IntProperty(name="font size",
-                             default=25,
-                             update=updateNode)
+    font_name = StringProperty()
+
+    locator = IntVectorProperty(
+        name="locator", description="stores location", default=(0, 0), size=2)
+
+    text_scale = IntProperty(
+        name="font size", default=25, update=updateNode)
 
     def draw_buttons(self, context, layout):
         row = layout.row(align=True)
@@ -172,6 +176,10 @@ class GTextNode(bpy.types.Node, SverchCustomTreeNode):
                 layout.prop(gp_layer, 'color')
                 layout.prop(gp_layer, 'line_width')
                 layout.prop(self, 'text_scale')
+        row = layout.row(align=True)
+        row.prop_search(self, 'font_name', bpy.data, 'fonts', text='')
+        row.operator('font.open', text='', icon='FILESEL')
+        # row.operator('node.sverchok_gtext_button', text='', icon='X').mode = 'clear_font'
 
     def update(self):
         pass
