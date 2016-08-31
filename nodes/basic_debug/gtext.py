@@ -91,8 +91,11 @@ def generate_gp_from_font(node, text, col, pos):
 
     def generate_gp3d_stroke(bm, layer):
 
-        layer.show_points = True
-        # layer.color = col
+        # show_xray = False
+        # use_hq_fill = False
+        layer.show_points = False
+        layer.fill_color = col
+        layer.alpha = 0.0
 
         verts = bm.verts
         verts.ensure_lookup_table()
@@ -103,7 +106,7 @@ def generate_gp_from_font(node, text, col, pos):
             s.points.add(len(f.verts))
             for i, v in enumerate(f.verts):
                 p = s.points[i]
-                p.co = verts[v.index].co
+                p.co = (verts[v.index].co.xy + Vector(pos)).to_3d()
                 p.pressure = 1.0
 
     name = 'qt_' + str(hash(node))
@@ -275,7 +278,7 @@ class GTextNode(bpy.types.Node, SverchCustomTreeNode):
         offset = lambda x, y: (x + x_offset, y + y_offset)
         pos = offset(*pos)
         if self.font_name:
-            generate_gp_from_font(self, text, col, pos)
+            generate_gp_from_font(self, text, (1,1,1), pos)
         else:    
             generate_greasepencil(self, text, col, pos, fdict)
 
