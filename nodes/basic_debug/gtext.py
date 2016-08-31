@@ -20,6 +20,7 @@ import ast
 import os
 
 import bpy
+import bmesh
 from bpy.props import IntProperty, IntVectorProperty, StringProperty
 from mathutils import Vector
 
@@ -27,42 +28,10 @@ from sverchok.node_tree import SverchCustomTreeNode
 from sverchok.data_structure import updateNode
 
 
-def info(v):
-    combo = []
-    for points in v:
-        combo.extend(points)
-
-    x, y, z = zip(*combo)
-    minx, maxx = min(x), max(x)
-    return minx, maxx, (maxx - minx)
+triangulate = bmesh.ops.triangulate
 
 
-def openjson_asdict(fname):
-    sv_path = os.path.dirname(os.path.realpath(__file__))
-    path_to_json = os.path.join(sv_path, fname)
-    with open(path_to_json) as d:
-        return ast.literal_eval(''.join(d.readlines()))
-
-
-def analyze_glyphs(fdict):
-    return {k: info(v) for k, v in fdict.items()}
-
-
-fdict = openjson_asdict('gtext_font.dict')
-fdict_sizes = analyze_glyphs(fdict)
-
-
-def generate_greasepencil(node, text, col, pos, fontdict):
-
-    scalar = node.text_scale
-    line_height = scalar * 1.56
-    spacing = scalar / 2.5
-    char_width = scalar / 1.14
-
-    yof = 0
-    xof = 0
-    bcx, bcy = pos
-
+def get_layer(node):
     nt = node.id_data
     node_name = node.name
     tree_name = nt.name
@@ -83,6 +52,100 @@ def generate_greasepencil(node, text, col, pos, fontdict):
     else:
         layer = gp.layers[node_name]
         layer.frames[0].clear()
+
+    return layer
+
+def info(v):
+    combo = []
+    for points in v:
+        combo.extend(points)
+
+    x, _, _ = zip(*combo)
+    minx, maxx = min(x), max(x)
+    return minx, maxx, (maxx - minx)
+
+
+def openjson_asdict(fname):
+    sv_path = os.path.dirname(os.path.realpath(__file__))
+    path_to_json = os.path.join(sv_path, fname)
+    with open(path_to_json) as d:
+        return ast.literal_eval(''.join(d.readlines()))
+
+
+def analyze_glyphs(fdict):
+    return {k: info(v) for k, v in fdict.items()}
+
+
+fdict = openjson_asdict('gtext_font.dict')
+fdict_sizes = analyze_glyphs(fdict)
+
+def generate_gp_from_font(node, text, col, pos):
+
+    def get_mesh(obj):
+        mesh_settings = (bpy.context.scene, False, 'PREVIEW')
+        data = obj.to_mesh(*mesh_settings)
+        bm = bmesh.new()
+        bm.from_mesh(data)
+        triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
+        return bm
+
+    def generate_gp3d_stroke(bm, layer):
+
+        layer.show_points = True
+        # layer.color = col
+
+        verts = bm.verts
+        verts.ensure_lookup_table()
+
+        for f in bm.faces:
+            s = layer.frames[0].strokes.new()
+            s.draw_mode = '2DSPACE'
+            s.points.add(len(f.verts))
+            for i, v in enumerate(f.verts):
+                p = s.points[i]
+                p.co = verts[v.index].co
+                p.pressure = 1.0
+
+    name = 'qt_' + str(hash(node))
+    tcu = bpy.data.curves.new(name=name, type='FONT')
+    obj = bpy.data.objects.new(name, tcu)
+    # obj.location = 
+    # bpy.context.scene.objects.link(obj)  .. no need to add?! :)
+
+    # TextCurve attributes
+    file_font = bpy.data.fonts.get(node.font_name)
+    tcu.font = file_font
+
+    tcu.body = text
+    tcu.offset_x = 0
+    tcu.offset_y = 0
+    tcu.resolution_u = 2
+    tcu.shear = 0
+    tcu.size = node.text_scale
+    tcu.space_character = 1
+    tcu.space_word = 1
+
+    layer = get_layer(node)
+
+    bm = get_mesh(obj)
+    generate_gp3d_stroke(bm, layer)
+
+    # cleanup
+    bpy.data.objects.remove(obj)
+    bpy.data.curves.remove(tcu)
+
+def generate_greasepencil(node, text, col, pos, fontdict):
+
+    scalar = node.text_scale
+    line_height = scalar * 1.56
+    spacing = scalar / 2.5
+    char_width = scalar / 1.14
+
+    yof = 0
+    xof = 0
+    bcx, bcy = pos
+
+    layer = get_layer(node)
 
     for ch in text:
         if ch == "\n":
@@ -211,7 +274,10 @@ class GTextNode(bpy.types.Node, SverchCustomTreeNode):
         y_offset = -90
         offset = lambda x, y: (x + x_offset, y + y_offset)
         pos = offset(*pos)
-        generate_greasepencil(self, text, col, pos, fdict)
+        if self.font_name:
+            generate_gp_from_font(self, text, col, pos)
+        else:    
+            generate_greasepencil(self, text, col, pos, fdict)
 
 
 def register():
