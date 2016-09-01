@@ -41,11 +41,14 @@ class SvNodeHotSwap(bpy.types.Operator):
         node_tree = node.id_data
         props_to_copy = 'bl_idname name location height width'.split(' ')
 
-        reconnections = []
-        mappings = itertools.chain.from_iterable([node.inputs, node.outputs])
-        for i in (i for i in mappings if i.is_linked):
-            for L in i.links:
-                reconnections.append([L.from_socket.path_from_id(), L.to_socket.path_from_id()])
+        def flatten(L):
+            return L.from_node.name, L.from_socket.index, L.to_node.name, L.to_socket.index
+
+        reconnections = {'inputs': [], 'outputs': []}
+        for sockets in reconnections.keys():
+            for s in (s for s in getattr(node, sockets) if s.is_linked):
+                for L in s.links:
+                    reconnections[sockets].append(flatten(L))
 
         props = {j: getattr(node, j) for j in props_to_copy}
 
@@ -57,10 +60,10 @@ class SvNodeHotSwap(bpy.types.Operator):
 
         # nodes = node_tree.nodes
         # nodes.remove(node)
-        new_node.name = props['name']
+        # new_node.name = props['name']
 
-        for str_from, str_to in reconnections:
-            print(str_from, str_to)
+        for k, v in reconnections.items():
+            print(k, v)
             # node_tree.links.new(eval(str_from), eval(str_to))
 
 
