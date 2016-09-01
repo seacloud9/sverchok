@@ -16,9 +16,11 @@
 #
 # END GPL LICENSE BLOCK #####
 
+import itertools
 
 import bpy
 from bpy.types import Operator
+
 
 class SvNodeHotSwap(bpy.types.Operator):
 
@@ -36,7 +38,31 @@ class SvNodeHotSwap(bpy.types.Operator):
         return any([(s in node.bl_idname) for s in ["Float", "Int"]])
 
     def hot_replace(self, node, replace_with):
-        ...
+        node_tree = node.id_data
+        props_to_copy = 'bl_idname name location height width'.split(' ')
+
+        reconnections = []
+        mappings = itertools.chain.from_iterable([node.inputs, node.outputs])
+        for i in (i for i in mappings if i.is_linked):
+            for L in i.links:
+                reconnections.append([L.from_socket.path_from_id(), L.to_socket.path_from_id()])
+
+        props = {j: getattr(node, j) for j in props_to_copy}
+
+        new_node = node_tree.nodes.new(replace_with)
+        props_to_copy.pop(0)
+
+        for prop in props_to_copy:
+            setattr(new_node, prop, props[prop])
+
+        # nodes = node_tree.nodes
+        # nodes.remove(node)
+        new_node.name = props['name']
+
+        for str_from, str_to in reconnections:
+            print(str_from, str_to)
+            # node_tree.links.new(eval(str_from), eval(str_to))
+
 
     def execute(self, context):
         float_range = "SvGenFloatRange"
