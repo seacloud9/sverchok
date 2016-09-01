@@ -19,6 +19,7 @@
 
 from collections import OrderedDict
 
+import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 import nodeitems_utils
 
@@ -348,15 +349,18 @@ def sv_group_items(context):
                         return True
         return False
 
-    for group in context.blend_data.node_groups:
-        if group.bl_idname != "SverchGroupTreeType":
+    for monad in context.blend_data.node_groups:
+        if monad.bl_idname != "SverchGroupTreeType":
             continue
-        # filter out recursive groups,
-        #    if contains_group(group, ntree):
-        #    continue
-        # my note, not sure about what this does
-        yield NodeItem(group.cls_bl_idname,
-                       group.name)
+        # make sure class exists
+        cls_ref = getattr(bpy.types, monad.cls_bl_idname, None)
+
+        if cls_ref and monad.cls_bl_idname:
+            yield NodeItem(monad.cls_bl_idname, monad.name)
+        elif monad.cls_bl_idname:
+            yield NodeItem("SvMonadGenericNode",
+                           monad.name,
+                           {"cls_bl_idname": "str('{}')".format(monad.cls_bl_idname)})
 
 
 
@@ -364,9 +368,11 @@ def draw_node_ops(self,layout, context):
 
     make_monad = "node.sv_monad_from_selected"
     ungroup_monad = "node.sv_monad_expand"
+    update_import = "node.sv_monad_class_update"
     layout.operator(make_monad, text='make group (+relink)', icon='RNA')
     layout.operator(make_monad, text='make group', icon='RNA').use_relinking = False
     layout.operator(ungroup_monad, text='ungroup', icon='RNA')
+    layout.operator(update_import, text='update appended/linked', icon='RNA')
     layout.separator()
 
 def make_categories():
