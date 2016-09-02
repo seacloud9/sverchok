@@ -74,10 +74,12 @@ class SvNodeHotSwap(bpy.types.Operator):
 
         for k, v in reconnections.items():
             print(k, v)
-            if k == 'inputs':
-                node_tree.links.new(nodes[v[0]].outputs[v[1]], new_node.inputs[v[3]])
-            else:
-                node_tree.links.new(new_node.outputs[v[1]], nodes[v[2]].inputs[v[3]])
+            for j in v:
+                if k == 'inputs':
+                    a, b = nodes[j[0]].outputs[j[1]], new_node.inputs[j[3]]
+                else:
+                    a, b = new_node.outputs[j[1]], nodes[j[2]].inputs[j[3]]
+                node_tree.links.new(a, b)
 
 
     def execute(self, context):
