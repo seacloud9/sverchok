@@ -58,13 +58,26 @@ class SvNodeHotSwap(bpy.types.Operator):
         for prop in props_to_copy:
             setattr(new_node, prop, props[prop])
 
-        # nodes = node_tree.nodes
-        # nodes.remove(node)
-        # new_node.name = props['name']
+        if 'Range' in node.bl_idname:
+            ops = ['LAZYRANGE', 'COUNTRANGE', 'LAZYRANGE', 'FRANGE', 'FRANGE_COUNT', 'FRANGE_STEP']
+
+            idx = ops.index(node.mode)
+            rfx = idx-3 if idx > 2 else idx+3
+            new_node.mode = ops[rfx]
+            
+        nodes = node_tree.nodes
+        nodes.remove(node)
+        new_node.name
+
+        # outputs [('List Range Int.002', 0, 'List Range Int.003', 0), ('List Range Int.002', 0, 'List Range Int.003', 1)]
+        # inputs [('Integer', 0, 'List Range Int.002', 0), ('Integer', 0, 'List Range Int.002', 2)]
 
         for k, v in reconnections.items():
             print(k, v)
-            # node_tree.links.new(eval(str_from), eval(str_to))
+            if k == 'inputs':
+                node_tree.links.new(nodes[v[0]].outputs[v[1]], new_node.inputs[v[3]])
+            else:
+                node_tree.links.new(new_node.outputs[v[1]], nodes[v[2]].inputs[v[3]])
 
 
     def execute(self, context):
