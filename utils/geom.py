@@ -83,8 +83,22 @@ def sn1_autodict(names, var_dict):
     return {k:v for k, v in var_dict.items() if k in set(names.split(' '))}
 
 
-# ----------------- light weight functions ---------------
+# ----------------- hand calc M*v for v in list ----------
 
+def multiply_vectors(M, vlist):
+    new_vecs = list(range(len(vlist)))  # first make list of len vlist.
+
+    for i, v in enumerate(vlist):
+        add_vec[i] = (None, None, None)
+        add_vec[i][0] = M[0][0]*v[0] + M[0][1]*v[1] + M[0][2]*v[2]
+        add_vec[i][1] = M[1][0]*v[0] + M[1][1]*v[1] + M[1][2]*v[2]
+        add_vec[i][2] = M[2][0]*v[0] + M[2][1]*v[1] + M[2][2]*v[2]
+
+    return new_vecs
+
+
+
+# ----------------- light weight functions ---------------
 
 def circle(radius=1.0, phase=0, nverts=20, matrix=None, mode='pydata'):
     '''
