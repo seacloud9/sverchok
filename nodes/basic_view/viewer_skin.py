@@ -94,7 +94,14 @@ def make_bmesh_geometry(node, context, geometry):
         scene.objects.link(obj)
 
     # at this point the mesh is always fresh and empty
-    force_pydata(obj.data, verts, edges)
+    if node.remove_doubles:
+        bm = bmesh_from_pydata(verts, edges)
+        node.ops_remove_doubles(bm, vdata, distance)
+
+        bm.free()
+    else:
+        force_pydata(obj.data, verts, edges)
+
     obj.update_tag(refresh={'OBJECT', 'DATA'})
     context.scene.update()
 
@@ -140,8 +147,6 @@ class SvSkinmodViewOp(bpy.types.Operator):
     def execute(self, context):
         self.skin_ops(context, self.fn_name)
         return {'FINISHED'}
-
-
 
 
 class SkinViewerNode(bpy.types.Node, SverchCustomTreeNode):
@@ -223,12 +228,14 @@ class SkinViewerNode(bpy.types.Node, SverchCustomTreeNode):
             icon='MATERIAL_DATA')
         r5.operator(sh, text='', icon='ZOOMIN').fn_name = 'add_material'
 
+
     def get_geometry_from_sockets(self):
         i = self.inputs
         mverts = i['vertices'].sv_get(default=[])[0]
         medges = i['edges'].sv_get(default=[])[0]
         mmtrix = i['matrix'].sv_get(default=[[]])[0]
         return mverts, medges, mmtrix
+
 
     def process(self):
         if not self.activate:
@@ -265,9 +272,41 @@ class SkinViewerNode(bpy.types.Node, SverchCustomTreeNode):
         if bpy.data.materials.get(self.material):
             self.set_corresponding_materials([obj])
 
+
     def set_corresponding_materials(self, objs):
         for obj in objs:
             obj.active_material = bpy.data.materials[self.material]
+
+
+    def ops_remove_doubles(self, bm, vdata, distance):
+        if len(bm.verts) == len(vdata):
+            # homogenous radii per vertex
+            ...
+        elif len(bm.verts) * 2 == len(vdata):
+            # non-homogenous radii per vertex
+            ...
+        else:
+            # currently extend vdata to match len(bm.verts) or len(bm.verts)*2
+            ...
+
+        radii = [0 for i in range(len(vdata)*2)]
+        vdata.foreach_get('radius', radii)
+        radii2 = radii[::2]
+
+        my_radii = bm.verts.layers.float.new('radii')
+        bm.verts.ensure_lookup_table()
+
+        for i in range(len(bm.verts)):
+            bm.verts[i][my_radii] = radii2[i]
+            print(radii2[i])
+
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=dist)
+
+        bm.verts.ensure_lookup_table()
+        for i in range(len(bm.verts)):
+            print(bm.verts[i][my_radii])
+
+
 
 def register():
     bpy.utils.register_class(SvSkinmodViewOp)
