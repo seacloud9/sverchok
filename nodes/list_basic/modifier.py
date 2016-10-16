@@ -55,6 +55,25 @@ def mask_subset(a, b):
     return [(_ in b) for _ in a]
 
 
+def no_double_polygons(a):
+
+    def shift_until_lowest_first(p):
+        # makes some assumption that the polygon is not degenerate.
+        lowest = min(p)
+        if lowest == p[0]:
+            return tuple(p)
+        else:
+            idx = p.index(lowest)
+            return tuple(p[idx:] + p[:idx])
+
+    mset = set()
+    for p in a:
+        pp = shift_until_lowest_first(p)
+        mset.add(pp)
+
+    return mset
+
+
 SET = 'Set'
 INTX = 'Intersection'
 UNION = 'Union'
