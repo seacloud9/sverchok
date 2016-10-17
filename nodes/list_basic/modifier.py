@@ -55,7 +55,7 @@ def mask_subset(a, b):
     return [(_ in b) for _ in a]
 
 
-def no_double_polygons(a):
+def no_double_polygons(a, check_reverses=False):
 
     def shift_until_lowest_first(p):
         # makes some assumption that the polygon is not degenerate.
@@ -67,10 +67,16 @@ def no_double_polygons(a):
             return tuple(p[idx:] + p[:idx])
 
     mset = set()
-    for p in a:
-        pp = shift_until_lowest_first(p)
-        mset.add(pp)
 
+    if not check_reverses:
+        for p in a:
+            pp = shift_until_lowest_first(p)
+            mset.add(pp)
+    else:
+        # reverse and shift before test to add.
+        for p in a:
+            pp = shift_until_lowest_first(p)
+            mset.add(pp)
     return mset
 
 
@@ -80,6 +86,7 @@ UNION = 'Union'
 DIFF = 'Difference'
 SYMDIFF = 'Symmetric Diff'
 SET_OPS = [SET, INTX, UNION, DIFF, SYMDIFF]
+TOPOLOGY = ["Topologic Set", "Topologic Set++"]
 
 # using a purposely broad indexing value range incase other functions get into this..
 node_item_list = [
@@ -88,6 +95,8 @@ node_item_list = [
     (1, 20, "Unique Consecutives", unique_consecutives),
     (1, 30, "Sequential Set", lambda a: sorted(set(a))),
     (1, 40, "Sequential Set Rev", lambda a: sorted(set(a), reverse=True)),
+    (1, 41, TOPOLOGY[0], no_double_polygons),
+    (1, 42, TOPOLOGY[1], lambda a: no_double_polygons(a, check_reverses=True)),
     (1, 50, "Normalize", normalize),
     (1, 60, "Accumulating Sum", lambda a: list(accumulate(a))),
     (2, 69, "Mask subset (A in B)", mask_subset),
@@ -143,10 +152,10 @@ class SvListModifierNode(bpy.types.Node, SverchCustomTreeNode):
         if not outputs[0].is_linked:
             return
         
-        unary = (num_inputs[self.func_] == 1)
-        f = self.get_f(unary)
+        is_unary = (num_inputs[self.func_] == 1)
+        f = self.get_f(is_unary)
 
-        if unary:
+        if is_unary:
             if inputs['Data1'].is_linked:
                 data1 = inputs['Data1'].sv_get()
             elif inputs['Data2'].is_linked:
@@ -158,29 +167,36 @@ class SvListModifierNode(bpy.types.Node, SverchCustomTreeNode):
             data1 = inputs['Data1'].sv_get()
             data2 = inputs['Data2'].sv_get()
             out = f(data1, data2)
-            # params = match_long_repeat([data1, data2])
-            # out = f(*params)
 
         outputs[0].sv_set(out)
 
     def get_f(self, unary):
+
         operation = func_dict[self.func_]
 
-        do_post = (self.func_ in SET_OPS) and self.listify
-        post_process = list if do_post else lambda x: x # identity function
-
-        if unary:
+        if self.func_ in TOPOLOGY:
             def f(d):
-                if isinstance(d[0], (int, float)):
-                    return post_process(operation(d))
+                if isinstance(d[0], list):
+                    return list(operation(d))
                 else:
-                    return [f(x) for x in d]
-        else: 
-            def f(a, b):
-                if isinstance(a[0], (int, float)):
-                    return post_process(operation(a, b))
-                else:
-                    return [f(*_) for _ in zip(a, b)]
+                    return [f(x) for x in d]    
+
+        else:
+            do_post = (self.func_ in SET_OPS) and self.listify
+            post_process = list if do_post else lambda x: x # identity function
+
+            if unary:
+                def f(d):
+                    if isinstance(d[0], (int, float)):
+                        return post_process(operation(d))
+                    else:
+                        return [f(x) for x in d]
+            else: 
+                def f(a, b):
+                    if isinstance(a[0], (int, float)):
+                        return post_process(operation(a, b))
+                    else:
+                        return [f(*_) for _ in zip(a, b)]
 
         return f
 
